@@ -1,5 +1,5 @@
 import yaml
-import streamlit as st
+import huggingface_hub
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -10,6 +10,16 @@ from components.chat_box import chat_box
 from components.chat_loop import chat_loop
 from components.init_state import init_state
 from components.prompt_engineering_dashboard import prompt_engineering_dashboard
+import streamlit as st
+
+# Access the Hugging Face token
+hf_token = st.secrets["HF_TOKEN"]
+
+# Example usage: if you're using the Hugging Face API
+from huggingface_hub import login
+
+login(token=hf_token)
+
 
 # Load config.yaml
 with open("config.yaml", "r") as file:
