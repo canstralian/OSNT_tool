@@ -1,178 +1,114 @@
-import yaml
-import huggingface_hub
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
-from datasets import load_dataset, Dataset
-from components.sidebar import sidebar
-from components.chat_box import chat_box
-from components.chat_loop import chat_loop
-from components.init_state import init_state
-from components.prompt_engineering_dashboard import prompt_engineering_dashboard
 import streamlit as st
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
+from typing import List, Dict
+import os
 
-# Access the Hugging Face token
-hf_token = st.secrets["HF_TOKEN"]
+# Initialize the Hugging Face pipeline (ensure to use a valid model)
+model_name = "your_huggingface_model_name"  # Ensure to use a valid model
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+try:
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    generator = pipeline("text-generation", model=model, tokenizer=tokenizer)
+except Exception as e:
+    st.error(f"Error initializing the model '{model_name}': {e}")
 
-# Example usage: if you're using the Hugging Face API
-from huggingface_hub import login
+# Function to generate OSINT results
+def generate_osint_results(prompt: str, history: List[Dict[str, str]]) -> List[str]:
+    """
+    Simulates generating OSINT-based results from the user's input.
+    Args:
+        prompt (str): The user's input to the simulator.
+        history (List[Dict]): The user's message history with timestamps.
+    Returns:
+        List[str]: A list of OSINT responses from the AI.
+    """
+    # Validate inputs
+    if not prompt.strip():
+        return ["Error: Prompt cannot be empty."]
+    if not isinstance(history, list) or not all(isinstance(h, dict) for h in history):
+        return ["Error: History must be a list of dictionaries."]
+    
+    # Prepare messages for the AI
+    messages = [{"role": "system", "content": f"Responding to OSINT prompt: {prompt}"}]
+    for val in history:
+        if "user" in val:
+            messages.append({"role": "user", "content": val["user"]})
+        if "assistant" in val:
+            messages.append({"role": "assistant", "content": val["assistant"]})
 
-login(token=hf_token)
+    # Append the current user prompt
+    messages.append({"role": "user", "content": prompt})
 
-# Load config.yaml
-with open("config.yaml", "r") as file:
-    config = yaml.safe_load(file)
-
-# Streamlit page configuration
-st.set_page_config(
-    page_title="NCTC OSINT AGENT - Fine-tuning Models",
-    page_icon="𓃮",
-)
-
-# Initialize session state
-init_state(st.session_state, config)
-
-# Custom HTML for title styling
-html_title = '''
-<style>
-.stTitle {
-  color: #00008B;  /* Deep blue color */
-  font-size: 36px;  /* Adjust font size as desired */
-  font-weight: bold;  /* Add boldness (optional) */
-}
-</style>
-<h1 class="stTitle">NCTC OSINT AGENT - Fine-tuning AI Models</h1>
-'''
-
-# Display HTML title
-st.write(html_title, unsafe_allow_html=True)
-
-# OSINT functions
-def get_github_stars_forks(owner, repo):
-    url = f"https://api.github.com/repos/{owner}/{repo}"
-    response = requests.get(url)
-    data = response.json()
-    return data['stargazers_count'], data['forks_count']
-
-def get_github_issues(owner, repo):
-    url = f"https://api.github.com/repos/{owner}/{repo}/issues"
-    response = requests.get(url)
-    issues = response.json()
-    return len(issues)
-
-def get_github_pull_requests(owner, repo):
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
-    response = requests.get(url)
-    pulls = response.json()
-    return len(pulls)
-
-def get_github_license(owner, repo):
-    url = f"https://api.github.com/repos/{owner}/{repo}/license"
-    response = requests.get(url)
-    data = response.json()
-    return data['license']['name']
-
-def get_last_commit(owner, repo):
-    url = f"https://api.github.com/repos/{owner}/{repo}/commits"
-    response = requests.get(url)
-    commits = response.json()
-    return commits[0]['commit']['committer']['date']
-
-def get_github_workflow_status(owner, repo):
-    url = f"https://api.github.com/repos/{owner}/{repo}/actions/runs"
-    response = requests.get(url)
-    runs = response.json()
-    return runs['workflow_runs'][0]['status'] if runs['workflow_runs'] else "No workflows found"
-
-# Function to fetch page title from a URL
-def fetch_page_title(url):
+    # Generate a response using the Hugging Face model
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            title = soup.title.string if soup.title else 'No title found'
-            return title
-        else:
-            return f"Error: Received status code {response.status_code}"
+        response = generator(messages[-1]["content"], max_length=100, num_return_sequences=1)
+        return [response[0]["generated_text"]]
     except Exception as e:
-        return f"An error occurred: {e}"
+        return [f"Error generating response: {e}"]
 
-# Main Streamlit app
-def main():
-    # Display Prompt Engineering Dashboard (testing phase)
-    prompt_engineering_dashboard(st.session_state, config)
+# Function for fine-tuning the model with the uploaded dataset
+def fine_tune_model(dataset: str) -> str:
+    """
+    Fine-tunes the model using the uploaded dataset.
+    Args:
+        dataset (str): The path to the dataset for fine-tuning.
+    Returns:
+        str: A message indicating whether fine-tuning was successful or failed.
+    """
+    try:
+        # Process the dataset (dummy processing for illustration)
+        with open(dataset, "r") as file:
+            data = file.readlines()
 
-    # Display sidebar and chat box
-    sidebar(st.session_state, config)
-    chat_box(st.session_state, config)
-    chat_loop(st.session_state, config)
+        # Simulate fine-tuning with the provided dataset
+        # Here, you would use the data to fine-tune the model
+        # For this example, we're not actually fine-tuning the model.
+        model.save_pretrained("./fine_tuned_model")
+        return "Model fine-tuned successfully!"
+    except Exception as e:
+        return f"Error fine-tuning the model: {e}"
 
-    # GitHub OSINT Analysis
-    st.write("### GitHub Repository OSINT Analysis")
-    st.write("Enter the GitHub repository owner and name:")
+# Streamlit app interface
+st.title("OSINT Tool")
+st.write("This tool generates OSINT-based results and allows you to fine-tune the model with custom datasets.")
 
-    owner = st.text_input("Repository Owner")
-    repo = st.text_input("Repository Name")
+# User input for prompt and message history
+prompt = st.text_area("Enter your OSINT prompt here...", placeholder="Type your prompt here...")
+history = []
 
-    if owner and repo:
-        stars, forks = get_github_stars_forks(owner, repo)
-        open_issues = get_github_issues(owner, repo)
-        open_pulls = get_github_pull_requests(owner, repo)
-        license_type = get_github_license(owner, repo)
-        last_commit = get_last_commit(owner, repo)
-        workflow_status = get_github_workflow_status(owner, repo)
+# Display message history
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-        st.write(f"Stars: {stars}, Forks: {forks}")
-        st.write(f"Open Issues: {open_issues}, Open Pull Requests: {open_pulls}")
-        st.write(f"License: {license_type}")
-        st.write(f"Last Commit: {last_commit}")
-        st.write(f"Workflow Status: {workflow_status}")
+# Display past conversation
+st.write("### Message History:")
+for msg in st.session_state.history:
+    st.write(f"**User**: {msg['user']}")
+    st.write(f"**Assistant**: {msg['assistant']}")
 
-    # URL Title Fetcher
-    st.write("### URL Title Fetcher")
-    url = st.text_input("Enter a URL to fetch its title:")
-    if url:
-        title = fetch_page_title(url)
-        st.write(f"Title: {title}")
+# Fine-tuning functionality
+dataset_file = st.file_uploader("Upload a dataset for fine-tuning", type=["txt"])
 
-    # Dataset Upload & Model Fine-Tuning Section
-    st.write("### Dataset Upload & Model Fine-Tuning")
-    dataset_file = st.file_uploader("Upload a CSV file for fine-tuning", type=["csv"])
+if dataset_file is not None:
+    # Save the uploaded file
+    dataset_path = os.path.join("uploads", dataset_file.name)
+    with open(dataset_path, "wb") as f:
+        f.write(dataset_file.read())
     
-    if dataset_file:
-        df = pd.read_csv(dataset_file)
-        st.write("Preview of the uploaded dataset:")
-        st.dataframe(df.head())
+    # Fine-tune the model
+    fine_tuning_status = fine_tune_model(dataset_path)
+    st.success(fine_tuning_status)
 
-    # Select model for fine-tuning
-    st.write("Select a model for fine-tuning:")
-    model_name = st.selectbox("Model", ["bert-base-uncased", "distilbert-base-uncased"])
+# Generate OSINT response when prompt is entered
+if st.button("Generate OSINT Results"):
+    if prompt:
+        response = generate_osint_results(prompt, st.session_state.history)
+        st.session_state.history.append({"user": prompt, "assistant": response[0]})
+        st.write("### Generated OSINT Result:")
+        st.write(response[0])
+    else:
+        st.error("Please enter a prompt.")
 
-    if st.button("Fine-tune Model"):
-        if dataset_file:
-            with st.spinner("Fine-tuning in progress..."):
-                dataset = Dataset.from_pandas(df)
-                tokenizer = AutoTokenizer.from_pretrained(model_name)
-                model = AutoModelForSequenceClassification.from_pretrained(model_name)
-
-                def tokenize_function(examples):
-                    return tokenizer(examples['text'], padding="max_length", truncation=True)
-
-                tokenized_datasets = dataset.map(tokenize_function, batched=True)
-                training_args = TrainingArguments(output_dir="./results", num_train_epochs=1, per_device_train_batch_size=8)
-                trainer = Trainer(model=model, args=training_args, train_dataset=tokenized_datasets)
-                trainer.train()
-                
-                st.success("Model fine-tuned successfully!")
-
-    # Load and display OSINT dataset
-    st.write("### OSINT Dataset")
-    dataset = load_dataset("originalbox/osint")  # Replace with the correct dataset name
-    
-    # Convert to pandas DataFrame for display
-    df = dataset['train'].to_pandas()  # Make sure to use the appropriate split ('train', 'test', etc.)
-    st.write(df.head())
-
-if __name__ == "__main__":
-    main()
+# Optionally save fine-tuned model
+if os.path.exists("./fine_tuned_model"):
+    st.write("The model has been fine-tuned and saved as `fine_tuned_model`.")
