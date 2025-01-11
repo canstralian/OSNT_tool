@@ -20,14 +20,13 @@ from huggingface_hub import login
 
 login(token=hf_token)
 
-
 # Load config.yaml
 with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
 # Streamlit page configuration
 st.set_page_config(
-    page_title="( -_•)▄︻テ═一💥 (´༎ຶٹ༎ຶ)NCTC OSINT AGENT BY TRHACKNON ╭∩╮( •̀_•́ )╭∩╮",
+    page_title="NCTC OSINT AGENT - Fine-tuning Models",
     page_icon="𓃮",
 )
 
@@ -41,10 +40,9 @@ html_title = '''
   color: #00008B;  /* Deep blue color */
   font-size: 36px;  /* Adjust font size as desired */
   font-weight: bold;  /* Add boldness (optional) */
-  /* Add other font styling here (optional) */
 }
 </style>
-<h1 class="stTitle">( -_•)▄︻テ═一💥(´༎ຶٹ༎ຶ)NCTC OSINT AGENT💥╾━╤デ╦︻(•̀⤙•́)</h1>
+<h1 class="stTitle">NCTC OSINT AGENT - Fine-tuning AI Models</h1>
 '''
 
 # Display HTML title
@@ -91,7 +89,6 @@ def get_github_workflow_status(owner, repo):
 def fetch_page_title(url):
     try:
         response = requests.get(url)
-        st.write(f"Fetching URL: {url} - Status Code: {response.status_code}")
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             title = soup.title.string if soup.title else 'No title found'
@@ -142,27 +139,32 @@ def main():
     # Dataset Upload & Model Fine-Tuning Section
     st.write("### Dataset Upload & Model Fine-Tuning")
     dataset_file = st.file_uploader("Upload a CSV file for fine-tuning", type=["csv"])
+    
     if dataset_file:
         df = pd.read_csv(dataset_file)
+        st.write("Preview of the uploaded dataset:")
         st.dataframe(df.head())
 
+    # Select model for fine-tuning
     st.write("Select a model for fine-tuning:")
     model_name = st.selectbox("Model", ["bert-base-uncased", "distilbert-base-uncased"])
 
     if st.button("Fine-tune Model"):
         if dataset_file:
-            dataset = Dataset.from_pandas(df)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForSequenceClassification.from_pretrained(model_name)
+            with st.spinner("Fine-tuning in progress..."):
+                dataset = Dataset.from_pandas(df)
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
-            def tokenize_function(examples):
-                return tokenizer(examples['text'], padding="max_length", truncation=True)
+                def tokenize_function(examples):
+                    return tokenizer(examples['text'], padding="max_length", truncation=True)
 
-            tokenized_datasets = dataset.map(tokenize_function, batched=True)
-            training_args = TrainingArguments(output_dir="./results", num_train_epochs=1, per_device_train_batch_size=8)
-            trainer = Trainer(model=model, args=training_args, train_dataset=tokenized_datasets)
-            trainer.train()
-            st.write("Model fine-tuned successfully!")
+                tokenized_datasets = dataset.map(tokenize_function, batched=True)
+                training_args = TrainingArguments(output_dir="./results", num_train_epochs=1, per_device_train_batch_size=8)
+                trainer = Trainer(model=model, args=training_args, train_dataset=tokenized_datasets)
+                trainer.train()
+                
+                st.success("Model fine-tuned successfully!")
 
     # Load and display OSINT dataset
     st.write("### OSINT Dataset")
