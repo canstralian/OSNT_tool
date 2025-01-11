@@ -1,4 +1,3 @@
+streamlit==1.22.0
 transformers==4.28.0
-torch==2.1.0  # You may need to adjust the version based on your environment
-flask==2.3.0  # If you're using Flask for web app purposes, you can include it
-streamlit==1.22.0  # If you're using Streamlit for your UI
+torch==2.1.0
