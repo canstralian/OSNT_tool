@@ -59,8 +59,7 @@ def fetch_page_title(url):
 # Main Streamlit app
 def main():
     st.title("OSINT Tool")
-
-    # OSINT Repository Analysis
+    
     st.write("### GitHub Repository OSINT Analysis")
     st.write("Enter the GitHub repository owner and name:")
 
@@ -81,40 +80,21 @@ def main():
         st.write(f"Last Commit: {last_commit}")
         st.write(f"Workflow Status: {workflow_status}")
 
-    # URL Title Fetcher
     st.write("### URL Title Fetcher")
     url = st.text_input("Enter a URL to fetch its title:")
     if url:
         title = fetch_page_title(url)
         st.write(f"Title: {title}")
     
-    # Dataset Upload & Model Fine-Tuning
     st.write("### Dataset Upload & Model Fine-Tuning")
-    st.write("#### Available OSINT Datasets for Fine-Tuning:")
-    osint_datasets = [
-        "gonferspanish/OSINT",
-        "Inforensics/missing-persons-clue-analysis-osint",
-        "jester6136/osint",
-        "originalbox/osint"
-    ]
-    
-    selected_dataset = st.selectbox("Choose a dataset for fine-tuning:", osint_datasets)
-    dataset = load_dataset(selected_dataset)
-
-    # Display dataset
-    st.write(f"Dataset {selected_dataset} loaded successfully!")
-    st.write(f"First few records:")
-    st.write(dataset['train'].head())
-
-    # Upload CSV for fine-tuning
     dataset_file = st.file_uploader("Upload a CSV file for fine-tuning", type=["csv"])
     if dataset_file:
         df = pd.read_csv(dataset_file)
         st.dataframe(df.head())
 
-    # Fine-tuning Model Selection
     st.write("Select a model for fine-tuning:")
     model_name = st.selectbox("Model", ["bert-base-uncased", "distilbert-base-uncased"])
+
     if st.button("Fine-tune Model"):
         if dataset_file:
             dataset = Dataset.from_pandas(df)
@@ -129,6 +109,14 @@ def main():
             trainer = Trainer(model=model, args=training_args, train_dataset=tokenized_datasets)
             trainer.train()
             st.write("Model fine-tuned successfully!")
+
+    # Load and display OSINT dataset
+    st.write("### OSINT Dataset")
+    dataset = load_dataset("originalbox/osint")  # Replace with the correct dataset name
+    
+    # Convert to pandas DataFrame for display
+    df = dataset['train'].to_pandas()  # Make sure to use the appropriate split ('train', 'test', etc.)
+    st.write(df.head())
 
 if __name__ == "__main__":
     main()
