@@ -11,6 +11,7 @@ try:
     generator = pipeline("text-generation", model=model, tokenizer=tokenizer)
 except Exception as e:
     st.error(f"Error initializing the model '{model_name}': {e}")
+    generator = None  # Set generator to None if model fails to load
 
 # Function to generate OSINT results
 def generate_osint_results(prompt: str, history: List[Dict[str, str]]) -> List[str]:
@@ -40,11 +41,14 @@ def generate_osint_results(prompt: str, history: List[Dict[str, str]]) -> List[s
     messages.append({"role": "user", "content": prompt})
 
     # Generate a response using the Hugging Face model
-    try:
-        response = generator(messages[-1]["content"], max_length=100, num_return_sequences=1)
-        return [response[0]["generated_text"]]
-    except Exception as e:
-        return [f"Error generating response: {e}"]
+    if generator:
+        try:
+            response = generator(messages[-1]["content"], max_length=100, num_return_sequences=1)
+            return [response[0]["generated_text"]]
+        except Exception as e:
+            return [f"Error generating response: {e}"]
+    else:
+        return ["Error: Model initialization failed."]
 
 # Function for fine-tuning the model with the uploaded dataset
 def fine_tune_model(dataset: str) -> str:
@@ -74,9 +78,8 @@ st.write("This tool generates OSINT-based results and allows you to fine-tune th
 
 # User input for prompt and message history
 prompt = st.text_area("Enter your OSINT prompt here...", placeholder="Type your prompt here...")
-history = []
 
-# Display message history
+# Initialize session state for message history
 if "history" not in st.session_state:
     st.session_state.history = []
 
@@ -92,6 +95,7 @@ dataset_file = st.file_uploader("Upload a dataset for fine-tuning", type=["txt"]
 if dataset_file is not None:
     # Save the uploaded file
     dataset_path = os.path.join("uploads", dataset_file.name)
+    os.makedirs("uploads", exist_ok=True)
     with open(dataset_path, "wb") as f:
         f.write(dataset_file.read())
     
