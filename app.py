@@ -1,10 +1,23 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
 import torch
 
 # Sidebar for user input
 st.sidebar.header("Model Configuration")
-model_name = st.sidebar.text_input("Enter model name", "huggingface/transformers")
+model_choice = st.sidebar.selectbox("Select a model", [
+    "CyberAttackDetection",
+    "text2shellcommands",
+    "pentest_ai"
+])
+
+# Define the model names
+model_mapping = {
+    "CyberAttackDetection": "Canstralian/CyberAttackDetection",
+    "text2shellcommands": "Canstralian/text2shellcommands",
+    "pentest_ai": "Canstralian/pentest_ai"
+}
+
+model_name = model_mapping.get(model_choice, "Canstralian/CyberAttackDetection")
 
 # Load model and tokenizer on demand
 @st.cache_resource
@@ -12,7 +25,10 @@ def load_model(model_name):
     try:
         # Load the model and tokenizer
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        if model_name == "Canstralian/text2shellcommands":
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        else:
+            model = AutoModelForSequenceClassification.from_pretrained(model_name)
         return tokenizer, model
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -22,20 +38,28 @@ def load_model(model_name):
 tokenizer, model = load_model(model_name)
 
 # Input text box in the main panel
-st.title("Text Classification with Hugging Face Models")
-user_input = st.text_area("Enter text for classification:")
+st.title(f"{model_choice} Model")
+user_input = st.text_area("Enter text:")
 
 # Make prediction if user input is provided
 if user_input and model and tokenizer:
-    inputs = tokenizer(user_input, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs)
+    if model_choice == "text2shellcommands":
+        # For text2shellcommands model, generate shell commands
+        inputs = tokenizer(user_input, return_tensors="pt", padding=True, truncation=True)
+        with torch.no_grad():
+            outputs = model.generate(**inputs)
+        generated_command = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        st.write(f"Generated Shell Command: {generated_command}")
     
-    # Display results (e.g., classification logits)
-    logits = outputs.logits
-    predicted_class = torch.argmax(logits, dim=-1).item()
-    st.write(f"Predicted Class: {predicted_class}")
-    st.write(f"Logits: {logits}")
-else:
-    st.info("Please enter some text to classify.")
+    else:
+        # For CyberAttackDetection and pentest_ai models, perform classification
+        inputs = tokenizer(user_input, return_tensors="pt", padding=True, truncation=True)
+        with torch.no_grad():
+            outputs = model(**inputs)
+        logits = outputs.logits
+        predicted_class = torch.argmax(logits, dim=-1).item()
+        st.write(f"Predicted Class: {predicted_class}")
+        st.write(f"Logits: {logits}")
 
+else:
+    st.info("Please enter some text for prediction.")
