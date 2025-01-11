@@ -1,9 +1,44 @@
+import yaml
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
 from datasets import load_dataset, Dataset
+from components.sidebar import sidebar
+from components.chat_box import chat_box
+from components.chat_loop import chat_loop
+from components.init_state import init_state
+from components.prompt_engineering_dashboard import prompt_engineering_dashboard
+
+# Load config.yaml
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+# Streamlit page configuration
+st.set_page_config(
+    page_title="( -_•)▄︻テ═一💥 (´༎ຶٹ༎ຶ)NCTC OSINT AGENT BY TRHACKNON ╭∩╮( •̀_•́ )╭∩╮",
+    page_icon="𓃮",
+)
+
+# Initialize session state
+init_state(st.session_state, config)
+
+# Custom HTML for title styling
+html_title = '''
+<style>
+.stTitle {
+  color: #00008B;  /* Deep blue color */
+  font-size: 36px;  /* Adjust font size as desired */
+  font-weight: bold;  /* Add boldness (optional) */
+  /* Add other font styling here (optional) */
+}
+</style>
+<h1 class="stTitle">( -_•)▄︻テ═一💥(´༎ຶٹ༎ຶ)NCTC OSINT AGENT💥╾━╤デ╦︻(•̀⤙•́)</h1>
+'''
+
+# Display HTML title
+st.write(html_title, unsafe_allow_html=True)
 
 # OSINT functions
 def get_github_stars_forks(owner, repo):
@@ -58,8 +93,15 @@ def fetch_page_title(url):
 
 # Main Streamlit app
 def main():
-    st.title("OSINT Tool")
-    
+    # Display Prompt Engineering Dashboard (testing phase)
+    prompt_engineering_dashboard(st.session_state, config)
+
+    # Display sidebar and chat box
+    sidebar(st.session_state, config)
+    chat_box(st.session_state, config)
+    chat_loop(st.session_state, config)
+
+    # GitHub OSINT Analysis
     st.write("### GitHub Repository OSINT Analysis")
     st.write("Enter the GitHub repository owner and name:")
 
@@ -80,12 +122,14 @@ def main():
         st.write(f"Last Commit: {last_commit}")
         st.write(f"Workflow Status: {workflow_status}")
 
+    # URL Title Fetcher
     st.write("### URL Title Fetcher")
     url = st.text_input("Enter a URL to fetch its title:")
     if url:
         title = fetch_page_title(url)
         st.write(f"Title: {title}")
-    
+
+    # Dataset Upload & Model Fine-Tuning Section
     st.write("### Dataset Upload & Model Fine-Tuning")
     dataset_file = st.file_uploader("Upload a CSV file for fine-tuning", type=["csv"])
     if dataset_file:
