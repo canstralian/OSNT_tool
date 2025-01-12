@@ -19,11 +19,11 @@ model_mapping = {
 
 model_name = model_mapping.get(model_choice, "Canstralian/CyberAttackDetection")
 
-# Load model and tokenizer on demand
+# Cache model and tokenizer to optimize load time
 @st.cache_resource
 def load_model(model_name):
+    """Load the model and tokenizer."""
     try:
-        # Load the model and tokenizer
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         if model_name == "Canstralian/text2shellcommands":
             model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
@@ -34,8 +34,9 @@ def load_model(model_name):
         st.error(f"Error loading model: {e}")
         return None, None
 
-# Load the model and tokenizer
-tokenizer, model = load_model(model_name)
+# Display progress spinner while loading model
+with st.spinner("Loading model..."):
+    tokenizer, model = load_model(model_name)
 
 # Input text box in the main panel
 st.title(f"{model_choice} Model")
@@ -58,7 +59,9 @@ if user_input and model and tokenizer:
             outputs = model(**inputs)
         logits = outputs.logits
         predicted_class = torch.argmax(logits, dim=-1).item()
+        confidence = torch.softmax(logits, dim=-1).max().item()  # Calculate confidence score
         st.write(f"Predicted Class: {predicted_class}")
+        st.write(f"Confidence: {confidence:.2f}")
         st.write(f"Logits: {logits}")
 
 else:
