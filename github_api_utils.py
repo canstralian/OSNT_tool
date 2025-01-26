@@ -1,3 +1,5 @@
+import requests
+
 # GitHub API functions
 def get_github_stars_forks(owner, repo):
     url = f"https://api.github.com/repos/{owner}/{repo}"
