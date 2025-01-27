@@ -1,0 +1,20 @@
+- name: Sync With Hugging Face Space
+  uses: alex-bene/huggingface-space-sync-action@v0.1
+  with:
+    # The GitHub repository ID (e.g., user/repo)
+    github_repo_id: "Chemically-motivated/OSINT_Tool"
+    
+    # The GitHub branch to sync with Hugging Face Space (optional, default is 'main')
+    github_branch: "main"  # Adjust if you're using a different branch
+    
+    # Path to the YAML header file if it's located in a subdirectory (optional)
+    yaml_header_path: ".github/workflows/config.yml"  # Set this if you have a config file
+    
+    # The Hugging Face Space repository ID (e.g., user/space-name)
+    huggingface_repo_id: "Chemically-motivated/OSINT_Tool"
+    
+    # Your Hugging Face username
+    hf_username: "canstralian"
+    
+    # Your Hugging Face token (set this as a secret in GitHub Actions for security)
+    hf_token: ${{ secrets.HF_TOKEN }}  # Store your token securely in GitHub Secrets
